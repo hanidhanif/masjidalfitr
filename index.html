@@ -1,74 +1,99 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <meta name="theme-color" content="#0A1F44" />
-  <meta name="description" content="Digital Signage Masjid AL-FITR - Bandaneira" />
-  <title>Masjid AL-FITR | Digital Display</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Amiri:wght@400;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css" />
-  <script src="https://cdn.jsdelivr.net/npm/adhan@4.4.3/lib/adhan.min.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#10243E">
+  <meta name="description" content="Masjid AL-FITR — jadwal sholat, arah kiblat, kalender Hijriah, dan informasi masjid.">
+  <title>Masjid AL-FITR — Bandaneira</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <div class="app" id="app">
-    <!-- Header -->
-    <header class="header">
-      <div class="mosque-info">
-        <div class="mosque-badge">بِسْمِ ٱللَّهِ</div>
-        <div class="mosque-name">MASJID AL-FITR</div>
-        <div class="mosque-location" id="locationLabel">Bandaneira, Maluku</div>
-      </div>
-      <div class="datetime">
-        <div class="time" id="currentTime">--:--:--</div>
-        <div class="dates">
-          <span id="gregorianDate">—</span>
-          <span class="separator">•</span>
-          <span id="hijriDate">—</span>
-        </div>
-      </div>
-    </header>
+  <header class="topbar">
+    <a class="brand" href="#beranda" aria-label="Masjid AL-FITR">
+      <span class="brand-mark">✦</span>
+      <span><strong>MASJID AL-FITR</strong><small>Bandaneira</small></span>
+    </a>
+    <nav>
+      <a href="#jadwal">Jadwal</a>
+      <a href="#fitur">Fitur</a>
+      <a href="#info">Info</a>
+    </nav>
+    <button class="icon-btn" id="themeBtn" aria-label="Ganti tema">◐</button>
+  </header>
 
-    <!-- Main Content -->
-    <main class="main">
-      <!-- Next Prayer Card -->
-      <section class="next-prayer-card" id="nextPrayerCard">
-        <div class="next-label">Waktu Sholat Berikutnya</div>
-        <div class="next-name" id="nextPrayerName">—</div>
+  <main id="beranda">
+    <section class="hero container">
+      <div class="hero-copy">
+        <span class="eyebrow">WAKTU IBADAH HARI INI</span>
+        <h1>Menjaga waktu,<br><em>mendekatkan hati.</em></h1>
+        <p class="lead">Jadwal sholat yang menyesuaikan lokasi perangkat, lengkap dengan hitung mundur menuju waktu sholat berikutnya.</p>
+        <div class="location-pill">⌖ <span id="locationText">Bandaneira, Indonesia</span></div>
+      </div>
+
+      <div class="next-card">
+        <div class="card-top"><span>SHOLAT BERIKUTNYA</span><span id="nextIcon">☾</span></div>
+        <div class="next-name" id="nextName">Memuat…</div>
         <div class="countdown" id="countdown">--:--:--</div>
-        <div class="next-time" id="nextPrayerTime">—</div>
-      </section>
-
-      <!-- Prayer Times Grid -->
-      <section class="prayer-grid" id="prayerGrid">
-        <!-- Filled by JS -->
-      </section>
-
-      <!-- Info / Quote Section -->
-      <section class="info-section">
-        <div class="quote-card" id="quoteCard">
-          <div class="quote-text" id="quoteText">Loading...</div>
-          <div class="quote-source" id="quoteSource"></div>
-        </div>
-      </section>
-    </main>
-
-    <!-- Running Text -->
-    <div class="running-text-container">
-      <div class="running-text" id="runningText">
-        Selamat datang di Masjid AL-FITR Bandaneira • Mari jaga kebersihan masjid • Shalat berjamaah lebih utama 27 derajat • 
+        <div class="next-time">Pukul <strong id="nextTime">--:--</strong></div>
+        <div class="progress"><span id="progressBar"></span></div>
+        <div class="small" id="progressText">Menyiapkan jadwal hari ini…</div>
       </div>
-    </div>
+    </section>
 
-    <!-- Footer -->
-    <footer class="footer">
-      <span>Masjid AL-FITR • Bandaneira</span>
-      <span id="methodLabel">Metode: Muslim World League</span>
-    </footer>
-  </div>
+    <section class="date-strip">
+      <div class="container date-inner">
+        <div><strong id="gregorianDate">—</strong><span id="hijriDate">—</span></div>
+        <div class="clock" id="liveClock">--:--:--</div>
+      </div>
+    </section>
 
+    <section id="jadwal" class="container section">
+      <div class="section-heading">
+        <div><span class="eyebrow">JADWAL HARI INI</span><h2>Waktu sholat</h2></div>
+        <button class="outline-btn" id="refreshBtn">↻ Perbarui</button>
+      </div>
+      <div class="prayer-grid" id="prayerGrid"></div>
+      <p class="source-note">Perhitungan menggunakan data koordinat dan metode Kementerian Agama Republik Indonesia melalui AlAdhan API. Waktu dapat berbeda beberapa menit dari jadwal resmi masjid setempat.</p>
+    </section>
+
+    <section id="fitur" class="container section">
+      <div class="section-heading"><div><span class="eyebrow">FITUR</span><h2>Teman ibadah harian</h2></div></div>
+      <div class="feature-grid">
+        <article class="feature-card">
+          <span class="feature-icon">⌖</span><h3>Lokasi otomatis</h3>
+          <p>Menggunakan lokasi perangkat jika diizinkan, dengan fallback ke Bandaneira.</p>
+          <button class="text-btn" id="locateBtn">Gunakan lokasi saya →</button>
+        </article>
+        <article class="feature-card">
+          <span class="feature-icon">◉</span><h3>Arah kiblat</h3>
+          <p>Hitung arah kiblat berdasarkan posisi perangkat secara langsung.</p>
+          <div class="qibla"><strong id="qiblaDegree">—°</strong><span>dari Utara</span></div>
+        </article>
+        <article class="feature-card">
+          <span class="feature-icon">☾</span><h3>Kalender Hijriah</h3>
+          <p>Tanggal Hijriah ditampilkan bersama tanggal Masehi pada halaman utama.</p>
+        </article>
+        <article class="feature-card">
+          <span class="feature-icon">◌</span><h3>Offline ringan</h3>
+          <p>Jadwal terakhir tersimpan di perangkat sehingga tetap dapat dibuka saat koneksi terputus.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="info" class="container section info-section">
+      <div class="info-card">
+        <div><span class="eyebrow">TENTANG</span><h2>Masjid AL-FITR</h2><p>Ruang digital sederhana untuk membantu jamaah menjaga waktu sholat dan menemukan informasi ibadah dengan nyaman.</p></div>
+        <div class="info-meta"><div><span>Lokasi</span><strong>Bandaneira, Maluku</strong></div><div><span>Zona waktu</span><strong id="timezone">Asia/Makassar</strong></div></div>
+      </div>
+    </section>
+  </main>
+
+  <footer><div class="container footer-inner"><strong>MASJID AL-FITR</strong><span>© <span id="year"></span> • Dibuat dengan niat baik.</span></div></footer>
+  <div class="toast" id="toast"></div>
   <script src="js/app.js"></script>
 </body>
 </html>

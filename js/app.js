@@ -1,301 +1,116 @@
-/**
- * Masjid AL-FITR Digital Signage
- * Bandaneira - Modern Minimalist Display
- * Pure HTML/CSS/JS + JSON config
- * Colors: Ivory, Cream, Navy
- */
+const FALLBACK = {lat:-4.5167, lon:129.9031, label:"Bandaneira, Indonesia"};
+const PRAYERS = [
+  ["Fajr","Subuh","الفجر","☼"],["Dhuhr","Dzuhur","الظهر","☀"],["Asr","Ashar","العصر","◒"],["Maghrib","Maghrib","المغرب","☾"],["Isha","Isya","العشاء","◐"]
+];
+let state={location:FALLBACK,timings:null, dateKey:null, next:null, scheduleStart:null, scheduleEnd:null};
 
-(function () {
-  'use strict';
+const $=s=>document.querySelector(s);
+function pad(n){return String(n).padStart(2,"0")}
+function toast(msg){const el=$("#toast");el.textContent=msg;el.classList.add("show");setTimeout(()=>el.classList.remove("show"),2800)}
+function localDate(){const d=new Date();return `${d.getDate()}-${d.getMonth()+1}-${d.getFullYear()}`}
+function dateLabel(d){return new Intl.DateTimeFormat("id-ID",{weekday:"long",day:"numeric",month:"long",year:"numeric"}).format(d)}
+function timeNow(){return new Date().toLocaleTimeString("id-ID",{hour12:false})}
+function timeToDate(t,day=new Date()){const [h,m]=t.split(":").map(Number);const d=new Date(day);d.setHours(h,m,0,0);return d}
+function formatCountdown(ms){let s=Math.max(0,Math.floor(ms/1000));let h=Math.floor(s/3600);s%=3600;let m=Math.floor(s/60);s%=60;return `${pad(h)}:${pad(m)}:${pad(s)}`}
 
-  // ===== Default Coordinates (Bandaneira) =====
-  const DEFAULT_COORDS = {
-    latitude: -4.5213,
-    longitude: 129.9050,
-    name: 'Bandaneira, Maluku'
-  };
-
-  // ===== Prayer Names (Indonesian) =====
-  const PRAYER_NAMES = {
-    fajr: 'Subuh',
-    sunrise: 'Syuruq',
-    dhuhr: 'Dzuhur',
-    asr: 'Ashar',
-    maghrib: 'Maghrib',
-    isha: 'Isya'
-  };
-
-  const PRAYER_ORDER = ['fajr', 'sunrise', 'dhuhr', 'asr', 'maghrib', 'isha'];
-
-  // ===== Quotes / Hadits =====
-  const QUOTES = [
-    {
-      text: 'Sesungguhnya shalat itu mencegah dari (perbuatan) keji dan mungkar.',
-      source: 'QS. Al-Ankabut: 45'
-    },
-    {
-      text: 'Shalatlah kamu sebagaimana kamu melihat aku shalat.',
-      source: 'HR. Bukhari'
-    },
-    {
-      text: 'Barangsiapa yang membangun masjid karena Allah, maka Allah akan bangunkan baginya rumah di surga.',
-      source: 'HR. Bukhari & Muslim'
-    },
-    {
-      text: 'Yang paling dicintai Allah adalah shalat pada waktunya.',
-      source: 'HR. Bukhari'
-    },
-    {
-      text: 'Jagalah shalatmu, karena ia adalah tiang agamamu.',
-      source: 'Pesan Ulama'
-    },
-    {
-      text: 'Hai orang-orang yang beriman, jadikanlah sabar dan shalat sebagai penolongmu.',
-      source: 'QS. Al-Baqarah: 153'
-    },
-    {
-      text: 'Sebaik-baik amal adalah shalat pada waktunya.',
-      source: 'HR. Ahmad'
-    },
-    {
-      text: 'Masjid adalah rumah setiap mukmin.',
-      source: 'HR. Abu Nu\'aim'
-    }
-  ];
-
-  // ===== State =====
-  let coords = { ...DEFAULT_COORDS };
-  let prayerTimes = null;
-  let nextPrayer = null;
-  let quoteIndex = 0;
-  let config = {
-    runningText: 'Selamat datang di Masjid AL-FITR Bandaneira • Mari jaga kebersihan masjid • Shalat berjamaah lebih utama 27 derajat • Jangan lupa matikan HP saat shalat • '
-  };
-
-  // ===== DOM Elements =====
-  const el = {
-    currentTime: document.getElementById('currentTime'),
-    gregorianDate: document.getElementById('gregorianDate'),
-    hijriDate: document.getElementById('hijriDate'),
-    locationLabel: document.getElementById('locationLabel'),
-    nextPrayerName: document.getElementById('nextPrayerName'),
-    countdown: document.getElementById('countdown'),
-    nextPrayerTime: document.getElementById('nextPrayerTime'),
-    prayerGrid: document.getElementById('prayerGrid'),
-    quoteText: document.getElementById('quoteText'),
-    quoteSource: document.getElementById('quoteSource'),
-    runningText: document.getElementById('runningText'),
-    methodLabel: document.getElementById('methodLabel')
-  };
-
-  // ===== Utility =====
-  function pad(n) {
-    return String(n).padStart(2, '0');
+async function fetchPrayer(lat,lon){
+  const now=new Date();
+  const dd=pad(now.getDate()), mm=pad(now.getMonth()+1), yy=now.getFullYear();
+  // 20 = Kementerian Agama Republik Indonesia
+  const url=`https://api.aladhan.com/v1/timings/${dd}-${mm}-${yy}?latitude=${lat}&longitude=${lon}&method=20`;
+  const res=await fetch(url,{cache:"no-store"});
+  if(!res.ok) throw new Error("Gagal mengambil jadwal");
+  const json=await res.json();
+  return json.data;
+}
+function render(data){
+  state.timings=data.timings; state.dateKey=localDate();
+  $("#gregorianDate").textContent=dateLabel(new Date());
+  $("#hijriDate").textContent=`${data.date.hijri.weekday.ar}, ${data.date.hijri.day} ${data.date.hijri.month.en} ${data.date.hijri.year} H`;
+  $("#timezone").textContent=data.meta?.timezone||Intl.DateTimeFormat().resolvedOptions().timeZone;
+  $("#locationText").textContent=state.location.label;
+  const vals=PRAYERS.map(([key])=>({key,keyLabel:PRAYERS.find(x=>x[0]===key)[1],time:data.timings[key]}));
+  $("#prayerGrid").innerHTML=vals.map(x=>`<article class="prayer-card" data-key="${x.key}"><span class="arabic">${PRAYERS.find(p=>p[0]===x.key)[2]}</span><h3>${x.keyLabel}</h3><time>${x.time}</time></article>`).join("");
+  chooseNext();
+}
+function chooseNext(){
+  if(!state.timings)return;
+  const now=new Date();
+  let next=null;
+  for(const [key,label] of PRAYERS){
+    const t=state.timings[key]; if(!t)continue;
+    const dt=timeToDate(t,now);
+    if(dt>now){next={key,label,time:t,dt};break}
   }
-
-  function formatTime(date) {
-    if (!date) return '--:--';
-    return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  if(!next){
+    const tomorrow=new Date(now);tomorrow.setDate(tomorrow.getDate()+1);
+    // after Isha, countdown points to tomorrow's Fajr; fetch tomorrow only if needed later
+    next={key:"Fajr",label:"Subuh",time:null,dt:null,tomorrow:true};
   }
-
-  function formatCountdown(ms) {
-    if (ms < 0) ms = 0;
-    const totalSec = Math.floor(ms / 1000);
-    const h = Math.floor(totalSec / 3600);
-    const m = Math.floor((totalSec % 3600) / 60);
-    const s = totalSec % 60;
-    if (h > 0) {
-      return `${pad(h)}:${pad(m)}:${pad(s)}`;
-    }
-    return `${pad(m)}:${pad(s)}`;
+  state.next=next; updateCountdown();
+}
+function updateCountdown(){
+  if(!state.next)return;
+  const now=new Date();
+  if(state.next.tomorrow && !state.next.dt){
+    // Use approximate rollover until tomorrow's data is loaded.
+    const target=new Date(now);target.setDate(target.getDate()+1);target.setHours(5,0,0,0);
+    $("#nextName").textContent="Subuh";
+    $("#nextTime").textContent="besok";
+    $("#countdown").textContent=formatCountdown(target-now);
+    $("#progressBar").style.width="0%";
+    return;
   }
-
-  function getHijriDate(date) {
-    try {
-      const formatter = new Intl.DateTimeFormat('id-u-ca-islamic', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric'
-      });
-      return formatter.format(date);
-    } catch (e) {
-      return '—';
-    }
+  const ms=state.next.dt-now;
+  if(ms<=0){chooseNext();return}
+  $("#nextName").textContent=state.next.label;
+  $("#nextTime").textContent=state.next.time;
+  $("#countdown").textContent=formatCountdown(ms);
+  const prayerCards=document.querySelectorAll(".prayer-card");
+  prayerCards.forEach(c=>c.classList.toggle("active",c.dataset.key===state.next.key));
+  const prevTimes=PRAYERS.map(([k])=>state.timings[k]).filter(Boolean).map(t=>timeToDate(t,now));
+  const idx=PRAYERS.findIndex(p=>p[0]===state.next.key);
+  const prev=idx>0?timeToDate(state.timings[PRAYERS[idx-1][0]],now):new Date(now.getTime()-3600000);
+  const total=state.next.dt-prev;const elapsed=now-prev;
+  $("#progressBar").style.width=`${Math.max(0,Math.min(100,elapsed/total*100))}%`;
+  $("#progressText").textContent=`Menuju ${state.next.label}`;
+}
+function haversineQibla(lat,lon){
+  const kaabaLat=21.4225*Math.PI/180, kaabaLon=39.8262*Math.PI/180;
+  const p=lat*Math.PI/180,l=lon*Math.PI/180;
+  const y=Math.sin(kaabaLon-l);
+  const x=Math.cos(p)*Math.tan(kaabaLat)-Math.sin(p)*Math.cos(kaabaLon-l);
+  return (Math.atan2(y,x)*180/Math.PI+360)%360;
+}
+async function load(lat=state.location.lat,lon=state.location.lon,label=state.location.label){
+  state.location={lat,lon,label};
+  try{
+    const data=await fetchPrayer(lat,lon);
+    localStorage.setItem("alfitr-last",JSON.stringify({location:state.location,data}));
+    render(data);
+    $("#qiblaDegree").textContent=Math.round(haversineQibla(lat,lon));
+  }catch(e){
+    const cached=localStorage.getItem("alfitr-last");
+    if(cached){const c=JSON.parse(cached);state.location=c.location;render(c.data);toast("Koneksi gagal • menampilkan jadwal terakhir")}
+    else toast("Jadwal belum dapat dimuat. Periksa koneksi internet.");
   }
-
-  function getGregorianDate(date) {
-    const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
-    return date.toLocaleDateString('id-ID', options);
-  }
-
-  // ===== Prayer Calculation =====
-  function calculatePrayerTimes(lat, lng, date) {
-    if (typeof adhan === 'undefined') {
-      console.error('Adhan library not loaded');
-      return null;
-    }
-
-    const coordinates = new adhan.Coordinates(lat, lng);
-    const params = adhan.CalculationMethod.MuslimWorldLeague();
-    params.madhab = adhan.Madhab.Shafi;
-    // Approach closer to Indonesian (Kemenag) practice
-    params.fajrAngle = 20;
-    params.ishaAngle = 18;
-
-    const times = new adhan.PrayerTimes(coordinates, date, params);
-
-    return {
-      fajr: times.fajr,
-      sunrise: times.sunrise,
-      dhuhr: times.dhuhr,
-      asr: times.asr,
-      maghrib: times.maghrib,
-      isha: times.isha
-    };
-  }
-
-  function findNextPrayer(times, now) {
-    for (const key of PRAYER_ORDER) {
-      if (key === 'sunrise') continue;
-      if (times[key] > now) {
-        return { name: key, time: times[key] };
-      }
-    }
-    // After Isha → Fajr tomorrow
-    const tomorrow = new Date(now);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowTimes = calculatePrayerTimes(coords.latitude, coords.longitude, tomorrow);
-    return { name: 'fajr', time: tomorrowTimes.fajr, isTomorrow: true };
-  }
-
-  // ===== Render =====
-  function renderClock() {
-    const now = new Date();
-    el.currentTime.textContent = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-    el.gregorianDate.textContent = getGregorianDate(now);
-    el.hijriDate.textContent = getHijriDate(now);
-  }
-
-  function renderPrayerGrid(times, now, next) {
-    el.prayerGrid.innerHTML = '';
-    PRAYER_ORDER.forEach(key => {
-      const item = document.createElement('div');
-      item.className = 'prayer-item';
-      if (next && next.name === key) item.classList.add('active');
-      if (times[key] < now && key !== 'sunrise') item.classList.add('passed');
-
-      item.innerHTML = `
-        <div class="prayer-name">${PRAYER_NAMES[key]}</div>
-        <div class="prayer-time">${formatTime(times[key])}</div>
-      `;
-      el.prayerGrid.appendChild(item);
-    });
-  }
-
-  function renderNextPrayer(next, now) {
-    if (!next) return;
-    el.nextPrayerName.textContent = PRAYER_NAMES[next.name];
-    el.nextPrayerTime.textContent = `pukul ${formatTime(next.time)}${next.isTomorrow ? ' (besok)' : ''}`;
-    const diff = next.time - now;
-    el.countdown.textContent = formatCountdown(diff);
-  }
-
-  function renderQuote() {
-    const q = QUOTES[quoteIndex % QUOTES.length];
-    el.quoteText.textContent = `"${q.text}"`;
-    el.quoteSource.textContent = `— ${q.source}`;
-  }
-
-  function updateAll() {
-    const now = new Date();
-    renderClock();
-
-    if (!prayerTimes) {
-      prayerTimes = calculatePrayerTimes(coords.latitude, coords.longitude, now);
-    }
-
-    // Recalculate near midnight
-    const midnight = new Date(now);
-    midnight.setHours(0, 0, 0, 0);
-    if (now - midnight < 2000) {
-      prayerTimes = calculatePrayerTimes(coords.latitude, coords.longitude, now);
-    }
-
-    nextPrayer = findNextPrayer(prayerTimes, now);
-    renderPrayerGrid(prayerTimes, now, nextPrayer);
-    renderNextPrayer(nextPrayer, now);
-  }
-
-  // ===== Geolocation =====
-  function initLocation() {
-    el.locationLabel.textContent = DEFAULT_COORDS.name;
-
-    if (!navigator.geolocation) {
-      console.log('Geolocation not supported, using Bandaneira');
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        coords.latitude = pos.coords.latitude;
-        coords.longitude = pos.coords.longitude;
-        coords.name = 'Lokasi Anda';
-        el.locationLabel.textContent = `Lokasi Anda (${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)})`;
-        prayerTimes = calculatePrayerTimes(coords.latitude, coords.longitude, new Date());
-        updateAll();
-      },
-      (err) => {
-        console.log('Geolocation failed, using Bandaneira default:', err.message);
-        el.locationLabel.textContent = DEFAULT_COORDS.name;
-      },
-      { enableHighAccuracy: false, timeout: 8000, maximumAge: 600000 }
-    );
-  }
-
-  // ===== Load Config (JSON) =====
-  async function loadConfig() {
-    try {
-      const res = await fetch('data/config.json');
-      if (res.ok) {
-        const data = await res.json();
-        if (data.runningText) {
-          config.runningText = data.runningText;
-          el.runningText.textContent = data.runningText;
-        }
-        if (data.quotes && Array.isArray(data.quotes) && data.quotes.length) {
-          QUOTES.length = 0;
-          data.quotes.forEach(q => QUOTES.push(q));
-        }
-      }
-    } catch (e) {
-      console.log('Using default config');
-    }
-  }
-
-  // ===== Init =====
-  function init() {
-    loadConfig();
-    initLocation();
-
-    prayerTimes = calculatePrayerTimes(coords.latitude, coords.longitude, new Date());
-    updateAll();
-    renderQuote();
-
-    setInterval(updateAll, 1000);
-
-    setInterval(() => {
-      quoteIndex++;
-      renderQuote();
-    }, 30000);
-
-    setInterval(() => {
-      prayerTimes = calculatePrayerTimes(coords.latitude, coords.longitude, new Date());
-    }, 3600000);
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
-  }
-})();
+}
+function requestLocation(){
+  if(!navigator.geolocation){toast("Browser tidak mendukung lokasi otomatis.");return}
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    const {latitude,longitude}=pos.coords;
+    await load(latitude,longitude,"Lokasi perangkat");
+    toast("Lokasi perangkat berhasil digunakan.");
+  },()=>toast("Izin lokasi ditolak • memakai Bandaneira."));
+}
+function init(){
+  $("#year").textContent=new Date().getFullYear();
+  $("#liveClock").textContent=timeNow();
+  setInterval(()=>{$("#liveClock").textContent=timeNow();updateCountdown()},1000);
+  $("#refreshBtn").onclick=()=>load();
+  $("#locateBtn").onclick=requestLocation;
+  $("#themeBtn").onclick=()=>{document.body.classList.toggle("dark");localStorage.setItem("alfitr-theme",document.body.classList.contains("dark")?"dark":"light")};
+  if(localStorage.getItem("alfitr-theme")==="dark")document.body.classList.add("dark");
+  load();
+}
+init();

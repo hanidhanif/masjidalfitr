@@ -1,31 +1,11 @@
 {
-  "mosqueName": "Masjid AL-FITR",
-  "location": "Bandaneira, Maluku",
-  "runningText": "Selamat datang di Masjid AL-FITR Bandaneira • Mari jaga kebersihan masjid • Shalat berjamaah lebih utama 27 derajat • Jangan lupa matikan HP saat shalat • Infak & sedekah memudahkan rezeki • ",
-  "quotes": [
-    {
-      "text": "Sesungguhnya shalat itu mencegah dari (perbuatan) keji dan mungkar.",
-      "source": "QS. Al-Ankabut: 45"
-    },
-    {
-      "text": "Shalatlah kamu sebagaimana kamu melihat aku shalat.",
-      "source": "HR. Bukhari"
-    },
-    {
-      "text": "Barangsiapa yang membangun masjid karena Allah, maka Allah akan bangunkan baginya rumah di surga.",
-      "source": "HR. Bukhari & Muslim"
-    },
-    {
-      "text": "Yang paling dicintai Allah adalah shalat pada waktunya.",
-      "source": "HR. Bukhari"
-    },
-    {
-      "text": "Hai orang-orang yang beriman, jadikanlah sabar dan shalat sebagai penolongmu.",
-      "source": "QS. Al-Baqarah: 153"
-    },
-    {
-      "text": "Masjid adalah rumah setiap mukmin.",
-      "source": "HR. Abu Nu'aim"
-    }
-  ]
+  "appName": "Masjid AL-FITR",
+  "location": "Bandaneira, Indonesia",
+  "fallbackCoordinates": {
+    "latitude": -4.5167,
+    "longitude": 129.9031
+  },
+  "prayerApi": "AlAdhan",
+  "calculationMethod": 20,
+  "notes": "Method 20 = Kementerian Agama Republik Indonesia. Geolocation browser digunakan bila pengguna memberi izin."
 }
